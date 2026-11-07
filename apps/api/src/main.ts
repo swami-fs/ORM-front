@@ -79,6 +79,7 @@ type ReviewLensIngestSummary = {
   dataset_id: string;
   platform: string;
   entity_name: string;
+  source_summary?: string | null;
   review_count: number;
   rating_count: number;
   average_rating: number | null;
@@ -208,53 +209,6 @@ async function fetchHtmlWithCurl(sourceUrl: string): Promise<CurlFetchResponse> 
   };
 }
 
-function parseReviewsFromRawText(reviewsText: string): string[] {
-  return reviewsText
-    .split(/\r?\n\s*\r?\n/g)
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.length > 0);
-}
-
-function quoteForCsv(value: string): string {
-  return `"${value.replaceAll('"', '""')}"`;
-}
-
-function isProbablyCsvContent(reviewsText: string): boolean {
-  const lines = reviewsText
-    .split(/\r?\n/g)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-  if (lines.length < 2) {
-    return false;
-  }
-  const firstLine = lines[0];
-  const secondLine = lines[1];
-  return firstLine.includes(',') && secondLine.includes(',');
-}
-
-function buildReviewsCsvContent(reviewsText: string): string {
-  const trimmedInput = reviewsText.trim();
-  if (!trimmedInput) {
-    throw new Error('At least one review is required');
-  }
-  const reviews = parseReviewsFromRawText(reviewsText);
-
-  if (isProbablyCsvContent(trimmedInput)) {
-    return trimmedInput;
-  }
-
-  if (reviews.length === 0) {
-    throw new Error('At least one review is required');
-  }
-
-  const rows = ['review_id,review_text'];
-  for (let index = 0; index < reviews.length; index += 1) {
-    const reviewText = reviews[index].replace(/\r?\n/g, ' ');
-    rows.push(`${quoteForCsv(`r${index + 1}`)},${quoteForCsv(reviewText)}`);
-  }
-  return rows.join('\n');
-}
-
 function getReviewLensToken(providedToken: unknown): string {
   if (typeof providedToken === 'string' && providedToken.trim().length > 0) {
     return providedToken.trim();
@@ -278,11 +232,10 @@ function getReviewLensBaseUrl(): string {
 function getFrontVersion(): string {
   return process.env.FRONT_VERSION?.trim() || '1.0.0';
 }
-
 async function callReviewLensIngest(params: {
-  reviewsCsv: string;
-  platform: string;
-  entityName: string;
+  sourceInput: string;
+  platform?: string;
+  entityName?: string;
   bearerToken: string;
 }): Promise<ReviewLensIngestSummary> {
   const response = await fetch(`${getReviewLensBaseUrl()}/ingest`, {
@@ -292,7 +245,7 @@ async function callReviewLensIngest(params: {
       Authorization: `Bearer ${params.bearerToken}`,
     },
     body: JSON.stringify({
-      reviews_csv: params.reviewsCsv,
+      source_input: params.sourceInput,
       platform: params.platform,
       entity_name: params.entityName,
     }),
@@ -404,27 +357,11 @@ app.post('/api/reviewlens/ingest-context', async (req, res) => {
         error: 'reviewsText is required',
       } satisfies ApiResponse<null>);
     }
-    if (!platform) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        error: 'platform is required',
-      } satisfies ApiResponse<null>);
-    }
-    if (!entityName) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        error: 'entityName is required',
-      } satisfies ApiResponse<null>);
-    }
-
     const bearerToken = getReviewLensToken(req.body?.bearerToken);
-    const reviewsCsv = buildReviewsCsvContent(reviewsText);
     const summary = await callReviewLensIngest({
-      reviewsCsv,
-      platform,
-      entityName,
+      sourceInput: reviewsText.trim(),
+      platform: platform || undefined,
+      entityName: entityName || undefined,
       bearerToken,
     });
 

@@ -25,6 +25,7 @@ type IngestSummary = {
   dataset_id: string;
   platform: string;
   entity_name: string;
+  source_summary?: string | null;
   review_count: number;
   average_rating: number | null;
 };
@@ -83,7 +84,7 @@ export function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      text: 'Paste reviews on the left, click "Set context", then ask questions here.',
+      text: 'Paste reviews (or an Amazon/Google URL) on the left, click "Set context", then ask questions here.',
     },
   ]);
 
@@ -166,7 +167,7 @@ export function App() {
       return;
     }
     if (!trimmed) {
-      setContextError('Please paste reviews before setting context.');
+      setContextError('Please provide reviews text/CSV or an Amazon/Google URL before setting context.');
       return;
     }
 
@@ -232,7 +233,7 @@ export function App() {
         ...prev,
         {
           role: 'assistant',
-          text: 'Please set context first by pasting reviews and clicking "Set context".',
+          text: 'Please set context first by providing reviews text/CSV or a review URL, then click "Set context".',
         },
       ]);
       return;
@@ -337,7 +338,7 @@ export function App() {
                 <h2>Context Reviews</h2>
               </div>
               <p className="url-note">
-                Paste reviews below. Separate reviews by a blank line, then click <strong>Set context</strong>.
+                Paste reviews below, paste CSV, or provide an Amazon/Google URL, then click <strong>Set context</strong>.
               </p>
               <div className="context-form">
                 <label className="context-label" htmlFor="platformInput">
@@ -383,10 +384,25 @@ export function App() {
               </div>
               {contextError && <p className="error-note">{contextError}</p>}
               {contextSummary && (
-                <p className="status-note">
-                  Context active: {contextSummary.review_count} reviews, dataset id{' '}
-                  <code>{contextSummary.dataset_id}</code>
-                </p>
+                <>
+                  <p className="status-note">
+                    Context active: {contextSummary.review_count} reviews, dataset id{' '}
+                    <code>{contextSummary.dataset_id}</code>
+                  </p>
+                  {contextSummary.source_summary && (
+                    <>
+                      <label className="context-label" htmlFor="sourceSummaryBox">
+                        Source Summary
+                      </label>
+                      <textarea
+                        id="sourceSummaryBox"
+                        className="reviews-textbox"
+                        value={contextSummary.source_summary}
+                        readOnly
+                      />
+                    </>
+                  )}
+                </>
               )}
             </section>
 

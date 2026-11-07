@@ -14,11 +14,13 @@
   - `corepack yarn nx serve @org/shop`
 - ReviewLens chat flow:
   - Login first from the Login page (`/api/reviewlens/authenticate`) using `authKey`
-  - Paste raw reviews in the left-side textbox (separate each review with a blank line), or paste CSV content directly (it will be ingested as CSV rows)
+  - Paste raw reviews in the left-side textbox (separate each review with a blank line), paste CSV content directly, or provide an Amazon/Google Maps review URL
+  - For URL input, platform/entity are auto-derived when omitted; for plain text/CSV, provide them as usual
   - Click **Set context** to call `/ingest` via API proxy (`/api/reviewlens/ingest-context`)
   - Ask questions in the right-side chat pane (`/api/reviewlens/chat`)
   - Successful login returns a bearer token used automatically for ingest/chat calls
   - Set `REVIEWLENS_API_BASE_URL` in `apps/api/.env` (see `apps/api/.env.example`)
+  - For URL ingestion, set `SERPAPI_API_KEY` in `ORM-chat-ai/.env` (and optional `AMAZON_MAX_PAGES`, default `1`)
   - Optional (for non-localhost frontend deployments): set `VITE_API_BASE_URL` for the shop app to the API origin (for example `http://13.184.235.250:3333`). If omitted, the app auto-targets `http://localhost:3333` on localhost, and `<current-host>:3333` on non-localhost.
   - API warning/error logs are written to `log/orm-front-api.log` at the repository root
   - Front/API version is controlled by `FRONT_VERSION` in [apps/api/.env](F:/swami/2026/futuresight/git/ORM-front/apps/api/.env)
