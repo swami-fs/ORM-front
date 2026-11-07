@@ -15,7 +15,7 @@
 - ReviewLens chat flow:
   - Login first from the Login page (`/api/reviewlens/authenticate`) using `authKey`
   - Paste raw reviews in the left-side textbox (separate each review with a blank line), paste CSV content directly, or provide an Amazon/Google Maps review URL
-  - For URL input, platform/entity are auto-derived when omitted; for plain text/CSV, provide them as usual
+  - Platform/entity fields are no longer shown in UI; backend derives them for URLs and uses defaults for plain text/CSV
   - Click **Set context** to call `/ingest` via API proxy (`/api/reviewlens/ingest-context`)
   - Ask questions in the right-side chat pane (`/api/reviewlens/chat`)
   - Successful login returns a bearer token used automatically for ingest/chat calls

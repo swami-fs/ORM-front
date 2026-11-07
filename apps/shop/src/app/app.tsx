@@ -2,6 +2,13 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import './app.css';
 
 const MENU_ITEMS = ['About', 'Settings', 'Help'];
+const SAMPLE_URLS = [
+  'https://www.amazon.com/dp/B0EXAMPLE12',
+  'https://maps.app.goo.gl/exampleBusinessLink',
+];
+const SAMPLE_SUMMARY = `Amazon URL → extracts review snippets, rating, date, reviewer.
+Google Maps URL → extracts review snippets, rating, date, reviewer.
+Tip: paste one URL in the Reviews box and click "Set context".`;
 const localhostHostnames = new Set(['localhost', '127.0.0.1']);
 const inferredApiOrigin = localhostHostnames.has(window.location.hostname)
   ? 'http://localhost:3333'
@@ -69,8 +76,6 @@ export function App() {
   const [authenticating, setAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [reviewsInput, setReviewsInput] = useState('');
-  const [platform, setPlatform] = useState('Google');
-  const [entityName, setEntityName] = useState('Product Reviews');
   const [bearerToken, setBearerToken] = useState('');
   const [ingesting, setIngesting] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
@@ -180,8 +185,6 @@ export function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reviewsText: trimmed,
-          platform: platform.trim() || 'Google',
-          entityName: entityName.trim() || 'Product Reviews',
           bearerToken,
         }),
       });
@@ -284,7 +287,12 @@ export function App() {
   return (
     <div className="layout">
       <header className="topbar">
-        <h1 className="brand">ORM Front</h1>
+        <div className="brand-wrap">
+          <div className="brand-logo" aria-hidden="true">
+            ORM
+          </div>
+          <h1 className="brand">Online Reputation Management</h1>
+        </div>
         <nav className="topbar-menu" aria-label="Top menu">
           <button
             className="menu-pill"
@@ -340,29 +348,28 @@ export function App() {
               <p className="url-note">
                 Paste reviews below, paste CSV, or provide an Amazon/Google URL, then click <strong>Set context</strong>.
               </p>
+              <div className="samples-box">
+                <div className="samples-title">Supported URL samples</div>
+                <ul className="samples-list">
+                  {SAMPLE_URLS.map((sampleUrl) => (
+                    <li key={sampleUrl}>
+                      <code>{sampleUrl}</code>
+                    </li>
+                  ))}
+                </ul>
+                <label className="context-label" htmlFor="sampleSummaryBox">
+                  Static extraction summary
+                </label>
+                <textarea
+                  id="sampleSummaryBox"
+                  className="summary-textbox"
+                  value={SAMPLE_SUMMARY}
+                  readOnly
+                />
+              </div>
               <div className="context-form">
-                <label className="context-label" htmlFor="platformInput">
-                  Platform
-                </label>
-                <input
-                  id="platformInput"
-                  className="context-input"
-                  value={platform}
-                  onChange={(event) => setPlatform(event.target.value)}
-                  placeholder="Google, Amazon, G2..."
-                />
-                <label className="context-label" htmlFor="entityInput">
-                  Entity Name
-                </label>
-                <input
-                  id="entityInput"
-                  className="context-input"
-                  value={entityName}
-                  onChange={(event) => setEntityName(event.target.value)}
-                  placeholder="Product or business name"
-                />
                 <label className="context-label" htmlFor="reviewsInput">
-                  Reviews
+                  Reviews or URL
                 </label>
                 <textarea
                   id="reviewsInput"
@@ -370,7 +377,7 @@ export function App() {
                   value={reviewsInput}
                   onChange={(event) => setReviewsInput(event.target.value)}
                   placeholder={
-                    'Review 1 text...\n\nReview 2 text...\n\nReview 3 text...'
+                    'Review 1 text...\n\nReview 2 text...\n\nReview 3 text...\n\nor\n\nhttps://www.amazon.com/dp/B0EXAMPLE12'
                   }
                 />
                 <button
@@ -396,7 +403,7 @@ export function App() {
                       </label>
                       <textarea
                         id="sourceSummaryBox"
-                        className="reviews-textbox"
+                        className="summary-textbox"
                         value={contextSummary.source_summary}
                         readOnly
                       />
