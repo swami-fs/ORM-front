@@ -1,0 +1,25 @@
+services:
+  orm-front:
+    image: node:22-bookworm
+    container_name: orm-front
+    working_dir: /workspace
+    command: >
+      sh -lc "corepack enable &&
+      yarn install &&
+      yarn nx run @org/shop:serve --host 0.0.0.0 --port 4200"
+    environment:
+      REVIEWLENS_API_BASE_URL: http://host.docker.internal:8090
+      HOST: 0.0.0.0
+      PORT: "3333"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./:/workspace
+      - orm-front-node-modules:/workspace/node_modules
+    ports:
+      - "4200:4200"
+      - "3333:3333"
+    restart: unless-stopped
+
+volumes:
+  orm-front-node-modules:
