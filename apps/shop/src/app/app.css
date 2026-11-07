@@ -106,9 +106,9 @@
 
 .main-pane {
   flex: 1;
-  display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(480px, 1.6fr);
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding: 12px;
   min-height: 0;
   height: 100%;
@@ -123,6 +123,14 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.context-pane {
+  flex: 0 0 auto;
+}
+
+.chat-pane {
+  flex: 1 1 auto;
 }
 
 .chat-input {
@@ -205,6 +213,12 @@
   padding: 12px;
 }
 
+.context-form-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 .context-label {
   font-size: 0.85rem;
   color: #334155;
@@ -218,12 +232,19 @@
 }
 
 .reviews-textbox {
-  min-height: 220px;
+  min-height: 120px;
   border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 0.95rem;
   resize: vertical;
+  flex: 1;
+}
+
+.context-form-row .load-btn {
+  min-width: 130px;
+  height: 42px;
+  align-self: flex-start;
 }
 
 .summary-textbox {
@@ -308,7 +329,7 @@
 
 @media (max-width: 1100px) {
   .main-pane {
-    grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .chat-pane {

@@ -2,13 +2,6 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import './app.css';
 
 const MENU_ITEMS = ['About', 'Settings', 'Help'];
-const SAMPLE_URLS = [
-  'https://www.amazon.com/dp/B0EXAMPLE12',
-  'https://maps.app.goo.gl/exampleBusinessLink',
-];
-const SAMPLE_SUMMARY = `Amazon URL → extracts review snippets, rating, date, reviewer.
-Google Maps URL → extracts review snippets, rating, date, reviewer.
-Tip: paste one URL in the Reviews box and click "Set context".`;
 const localhostHostnames = new Set(['localhost', '127.0.0.1']);
 const inferredApiOrigin = localhostHostnames.has(window.location.hostname)
   ? 'http://localhost:3333'
@@ -198,7 +191,9 @@ export function App() {
         ...prev,
         {
           role: 'assistant',
-          text: `Context set with ${payload.data.review_count} reviews for ${payload.data.entity_name}.`,
+          text:
+            payload.data.source_summary ??
+            `Context set with ${payload.data.review_count} reviews for ${payload.data.entity_name}.`,
         },
       ]);
     } catch (error) {
@@ -342,42 +337,14 @@ export function App() {
         ) : (
           <main className="main-pane">
             <section className="context-pane" aria-label="Review context">
-              <div className="reviews-head">
-                <h2>Context Reviews</h2>
-              </div>
-              <p className="url-note">
-                Paste reviews below, paste CSV, or provide an Amazon/Google URL, then click <strong>Set context</strong>.
-              </p>
-              <div className="samples-box">
-                <div className="samples-title">Supported URL samples</div>
-                <ul className="samples-list">
-                  {SAMPLE_URLS.map((sampleUrl) => (
-                    <li key={sampleUrl}>
-                      <code>{sampleUrl}</code>
-                    </li>
-                  ))}
-                </ul>
-                <label className="context-label" htmlFor="sampleSummaryBox">
-                  Static extraction summary
-                </label>
-                <textarea
-                  id="sampleSummaryBox"
-                  className="summary-textbox"
-                  value={SAMPLE_SUMMARY}
-                  readOnly
-                />
-              </div>
-              <div className="context-form">
-                <label className="context-label" htmlFor="reviewsInput">
-                  Reviews or URL
-                </label>
+              <div className="context-form context-form-row">
                 <textarea
                   id="reviewsInput"
                   className="reviews-textbox"
                   value={reviewsInput}
                   onChange={(event) => setReviewsInput(event.target.value)}
                   placeholder={
-                    'Review 1 text...\n\nReview 2 text...\n\nReview 3 text...\n\nor\n\nhttps://www.amazon.com/dp/B0EXAMPLE12'
+                    'Enter Amazon or Google URL (e.g., https://www.amazon.com/dp/B0EXAMPLE12 or https://maps.app.goo.gl/exampleBusinessLink), or paste reviews in raw text / CSV format'
                   }
                 />
                 <button
@@ -391,30 +358,15 @@ export function App() {
               </div>
               {contextError && <p className="error-note">{contextError}</p>}
               {contextSummary && (
-                <>
-                  <p className="status-note">
-                    Context active: {contextSummary.review_count} reviews, dataset id{' '}
-                    <code>{contextSummary.dataset_id}</code>
-                  </p>
-                  {contextSummary.source_summary && (
-                    <>
-                      <label className="context-label" htmlFor="sourceSummaryBox">
-                        Source Summary
-                      </label>
-                      <textarea
-                        id="sourceSummaryBox"
-                        className="summary-textbox"
-                        value={contextSummary.source_summary}
-                        readOnly
-                      />
-                    </>
-                  )}
-                </>
+                <p className="status-note">
+                  Context active: {contextSummary.review_count} reviews, dataset id{' '}
+                  <code>{contextSummary.dataset_id}</code>
+                </p>
               )}
             </section>
 
             <section className="chat-pane" aria-label="Chat window">
-              <div className="chat-title">AI Chat</div>
+              <div className="chat-title">ReviewLens AI</div>
               <div className="chat-history" ref={chatHistoryRef}>
                 {messages.map((message, index) => (
                   <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
