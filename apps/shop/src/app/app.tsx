@@ -2,6 +2,19 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import './app.css';
 
 const MENU_ITEMS = ['About', 'Settings', 'Help'];
+const localhostHostnames = new Set(['localhost', '127.0.0.1']);
+const inferredApiOrigin = localhostHostnames.has(window.location.hostname)
+  ? 'http://localhost:3333'
+  : `${window.location.protocol}//${window.location.hostname}:3333`;
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL?.trim() || inferredApiOrigin).replace(
+  /\/$/,
+  '',
+);
+
+function apiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${apiOrigin}${normalizedPath}`;
+}
 
 type ChatMessage = {
   role: 'user' | 'assistant';
@@ -88,7 +101,7 @@ export function App() {
   useEffect(() => {
     const loadVersions = async () => {
       try {
-        const response = await fetch('http://localhost:3333/api/reviewlens/versions');
+        const response = await fetch(apiUrl('/api/reviewlens/versions'));
         const payload = (await response.json()) as VersionsApiResponse;
         if (!response.ok || !payload.success || !payload.data) {
           return;
@@ -112,7 +125,7 @@ export function App() {
     setAuthenticating(true);
     setAuthError(null);
     try {
-      const response = await fetch('http://localhost:3333/api/reviewlens/authenticate', {
+      const response = await fetch(apiUrl('/api/reviewlens/authenticate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authKey: trimmedAuthKey }),
@@ -161,7 +174,7 @@ export function App() {
     setContextError(null);
     setContextSummary(null);
     try {
-      const response = await fetch('http://localhost:3333/api/reviewlens/ingest-context', {
+      const response = await fetch(apiUrl('/api/reviewlens/ingest-context'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -227,7 +240,7 @@ export function App() {
 
     setChatBusy(true);
     try {
-      const response = await fetch('http://localhost:3333/api/reviewlens/chat', {
+      const response = await fetch(apiUrl('/api/reviewlens/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,11 +4,14 @@ services:
     container_name: orm-front
     working_dir: /workspace
     command: >
-      sh -lc "corepack enable &&
+      sh -lc "rm -rf .nx/workspace-data &&
+      mkdir -p .nx/workspace-data &&
+      corepack enable &&
       yarn install &&
       yarn nx run @org/shop:serve --host 0.0.0.0 --port 4200"
     environment:
       REVIEWLENS_API_BASE_URL: http://host.docker.internal:8090
+      NX_DAEMON: "false"
       HOST: 0.0.0.0
       PORT: "3333"
     extra_hosts:

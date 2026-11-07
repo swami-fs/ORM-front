@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Product, ApiResponse } from '@org/models';
 
-const API_URL = 'http://localhost:3333/api';
+const localhostHostnames = new Set(['localhost', '127.0.0.1']);
+const inferredApiOrigin = localhostHostnames.has(window.location.hostname)
+  ? 'http://localhost:3333'
+  : `${window.location.protocol}//${window.location.hostname}:3333`;
+const apiOrigin = (import.meta.env.VITE_API_BASE_URL?.trim() || inferredApiOrigin).replace(
+  /\/$/,
+  '',
+);
+const API_URL = `${apiOrigin}/api`;
 
 export function useProduct(id: string | undefined) {
   const [product, setProduct] = useState<Product | null>(null);

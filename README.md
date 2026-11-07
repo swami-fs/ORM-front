@@ -19,6 +19,7 @@
   - Ask questions in the right-side chat pane (`/api/reviewlens/chat`)
   - Successful login returns a bearer token used automatically for ingest/chat calls
   - Set `REVIEWLENS_API_BASE_URL` in `apps/api/.env` (see `apps/api/.env.example`)
+  - Optional (for non-localhost frontend deployments): set `VITE_API_BASE_URL` for the shop app to the API origin (for example `http://13.184.235.250:3333`). If omitted, the app auto-targets `http://localhost:3333` on localhost, and `<current-host>:3333` on non-localhost.
   - API warning/error logs are written to `log/orm-front-api.log` at the repository root
   - Front/API version is controlled by `FRONT_VERSION` in [apps/api/.env](F:/swami/2026/futuresight/git/ORM-front/apps/api/.env)
   - UI footer shows both Front version and Chat-AI version

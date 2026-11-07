@@ -3,10 +3,8 @@
 import express from 'express';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { appendFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { appendFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { ProductsService } from '@org/api-products';
@@ -234,18 +232,15 @@ function isProbablyCsvContent(reviewsText: string): boolean {
   return firstLine.includes(',') && secondLine.includes(',');
 }
 
-async function writeReviewsToTempCsv(reviewsText: string): Promise<string> {
+function buildReviewsCsvContent(reviewsText: string): string {
   const trimmedInput = reviewsText.trim();
   if (!trimmedInput) {
     throw new Error('At least one review is required');
   }
   const reviews = parseReviewsFromRawText(reviewsText);
-  const tempDir = await mkdtemp(path.join(tmpdir(), 'reviewlens-context-'));
-  const filePath = path.join(tempDir, `reviews-${randomUUID()}.csv`);
 
   if (isProbablyCsvContent(trimmedInput)) {
-    await writeFile(filePath, trimmedInput, 'utf8');
-    return filePath;
+    return trimmedInput;
   }
 
   if (reviews.length === 0) {
@@ -257,8 +252,7 @@ async function writeReviewsToTempCsv(reviewsText: string): Promise<string> {
     const reviewText = reviews[index].replace(/\r?\n/g, ' ');
     rows.push(`${quoteForCsv(`r${index + 1}`)},${quoteForCsv(reviewText)}`);
   }
-  await writeFile(filePath, rows.join('\n'), 'utf8');
-  return filePath;
+  return rows.join('\n');
 }
 
 function getReviewLensToken(providedToken: unknown): string {
@@ -286,7 +280,7 @@ function getFrontVersion(): string {
 }
 
 async function callReviewLensIngest(params: {
-  filePath: string;
+  reviewsCsv: string;
   platform: string;
   entityName: string;
   bearerToken: string;
@@ -298,7 +292,7 @@ async function callReviewLensIngest(params: {
       Authorization: `Bearer ${params.bearerToken}`,
     },
     body: JSON.stringify({
-      file_path: params.filePath,
+      reviews_csv: params.reviewsCsv,
       platform: params.platform,
       entity_name: params.entityName,
     }),
@@ -426,9 +420,9 @@ app.post('/api/reviewlens/ingest-context', async (req, res) => {
     }
 
     const bearerToken = getReviewLensToken(req.body?.bearerToken);
-    const filePath = await writeReviewsToTempCsv(reviewsText);
+    const reviewsCsv = buildReviewsCsvContent(reviewsText);
     const summary = await callReviewLensIngest({
-      filePath,
+      reviewsCsv,
       platform,
       entityName,
       bearerToken,
