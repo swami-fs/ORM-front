@@ -1,282 +1,225 @@
-# Nx React Repository
+# ORM Front
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+Frontend + API gateway for product browsing and ReviewLens AI chat.
 
-✨ A repository showcasing key [Nx](https://nx.dev) features for React monorepos ✨
-<!-- BEGIN: nx-cloud -->
-🚀 If you haven't connected to Nx Cloud yet, [complete your setup here](https://cloud.nx.app/get-started). Get faster builds with remote caching, distributed task execution, and self-healing CI. [See how your workspace can benefit](#nx-cloud).
-<!-- END: nx-cloud -->
+---
 
-## ORM Front custom UI
+## Architecture overview
 
-- Run with Yarn + Nx:
-  - `corepack yarn install`
-  - `corepack yarn nx serve @org/shop`
-- ReviewLens chat flow:
-  - Login first from the Login page (`/api/reviewlens/authenticate`) using `authKey`
-  - Paste raw reviews in the left-side textbox (separate each review with a blank line), paste CSV content directly, or provide an Amazon/Google Maps review URL
-  - Platform/entity fields are no longer shown in UI; backend derives them for URLs and uses defaults for plain text/CSV
-  - Click **Set context** to call `/ingest` via API proxy (`/api/reviewlens/ingest-context`)
-  - Ask questions in the right-side chat pane (`/api/reviewlens/chat`)
-  - Successful login returns a bearer token used automatically for ingest/chat calls
-  - Set `REVIEWLENS_API_BASE_URL` in `apps/api/.env` (see `apps/api/.env.example`)
-  - For URL ingestion, set `SERPAPI_API_KEY` in `ORM-chat-ai/.env` (and optional `AMAZON_MAX_PAGES`, default `1`)
-  - Optional (for non-localhost frontend deployments): set `VITE_API_BASE_URL` for the shop app to the API origin (for example `http://13.184.235.250:3333`). If omitted, the app auto-targets `http://localhost:3333` on localhost, and `<current-host>:3333` on non-localhost.
-  - API warning/error logs are written to `log/orm-front-api.log` at the repository root
-  - Front/API version is controlled by `FRONT_VERSION` in [apps/api/.env](F:/swami/2026/futuresight/git/ORM-front/apps/api/.env)
-  - UI footer shows both Front version and Chat-AI version
-  - Docker (bind mount, no code copy): from [ORM-front/](F:/swami/2026/futuresight/git/ORM-front) run `docker compose up`
+```text
+Browser UI (React app, port 4200)
+  -> ORM Front API (Express, port 3333)
+      -> Product service (local)
+      -> ReviewLens Chat API (external base URL via REVIEWLENS_API_BASE_URL)
+```
 
-## 📦 Project Overview
+### Main apps
+- `apps/shop` — React UI
+- `apps/api` — Express API + ReviewLens proxy
 
-This repository demonstrates a production-ready React monorepo with:
+### Data flow (ReviewLens)
+1. User logs in with auth key.
+2. UI calls `/api/reviewlens/authenticate` to get bearer token.
+3. User sets context (text / CSV / Amazon URL / Google Maps URL).
+4. UI calls `/api/reviewlens/ingest-context` and receives `dataset_id`.
+5. User asks questions.
+6. UI calls `/api/reviewlens/chat` using `dataset_id`.
 
-- **2 Applications**
+---
 
-  - `shop` - React e-commerce application with product listings and detail views
-  - `api` - Backend API serving product data
+## Inputs and outputs
 
-- **7 Libraries**
+## UI input
 
-  - `@org/shop-feature-products` - Product listing feature (React)
-  - `@org/shop-feature-product-detail` - Product detail feature (React)
-  - `@org/shop-data` - Data access layer for shop features
-  - `@org/shop-shared-ui` - Shared UI components
-  - `@org/models` - Shared data models
-  - `@org/api-products` - API product service library
-  - `@org/shared-test-utils` - Shared testing utilities
+### Login input
+- Auth key (string)
 
-- **E2E Testing**
-  - `shop-e2e` - Playwright tests for the shop application
+### Context input
+- Single textbox accepts:
+  - raw review text (separate reviews with a blank line)
+  - CSV text
+  - Amazon URL
+  - Google Maps URL
 
-## 🚀 Quick Start
+### Chat input
+- Natural-language question about the ingested review context
+
+---
+
+## API input/output (ORM Front API)
+
+All ReviewLens endpoints are exposed by `apps/api`:
+
+### `POST /api/reviewlens/authenticate`
+**Input**
+```json
+{ "authKey": "your-auth-key" }
+```
+
+**Output**
+```json
+{
+  "success": true,
+  "data": { "bearerToken": "..." }
+}
+```
+
+### `POST /api/reviewlens/ingest-context`
+**Input**
+```json
+{
+  "reviewsText": "raw text, CSV text, or supported URL",
+  "bearerToken": "...",
+  "platform": "optional",
+  "entityName": "optional"
+}
+```
+
+**Output**
+```json
+{
+  "success": true,
+  "data": {
+    "dataset_id": "uuid",
+    "platform": "string",
+    "entity_name": "string",
+    "source_summary": "optional",
+    "review_count": 12,
+    "rating_count": 10,
+    "average_rating": 4.2,
+    "first_review_date": "2026-01-01",
+    "last_review_date": "2026-10-01"
+  }
+}
+```
+
+### `POST /api/reviewlens/chat`
+**Input**
+```json
+{
+  "datasetId": "uuid-from-ingest",
+  "question": "What are top complaints?",
+  "topK": 12,
+  "bearerToken": "..."
+}
+```
+
+**Output**
+```json
+{
+  "success": true,
+  "data": {
+    "decision": "answer",
+    "answer": "Most frequent complaint is slow support response.",
+    "evidence_review_ids": ["r2", "r5"]
+  }
+}
+```
+
+### `GET /api/reviewlens/versions`
+**Output**
+```json
+{
+  "success": true,
+  "data": {
+    "frontVersion": "1.0.0",
+    "chatVersion": "1.0.0"
+  }
+}
+```
+
+---
+
+## Local development
+
+## Prerequisites
+- Node.js 22+
+- Corepack enabled
+- Yarn 4
+
+## Setup
+```bash
+corepack enable
+yarn install
+cp apps/api/.env.example apps/api/.env
+```
+
+Set required values in `apps/api/.env`:
+- `REVIEWLENS_API_BASE_URL`
+- `AUTH_KEY`
+- `SECRET_KEY`
+- `ALGORITHM`
+- `FRONT_VERSION` (optional; default shown in footer if configured)
+
+Start frontend + API:
+```bash
+yarn nx run @org/shop:serve
+```
+
+URLs:
+- Shop UI: `http://localhost:4200`
+- API: `http://localhost:3333`
+
+---
+
+## Container deployment
+
+Use the included `docker-compose.yml`:
 
 ```bash
-# Clone the repository
-git clone <your-fork-url>
-cd <your-repository-name>
-
-# Install dependencies
-npm install
-
-# Serve the React shop application (this will simultaneously serve the API backend)
-npx nx run @org/shop:serve
-
-# ...or you can serve the API separately
-npx nx run @org/api:serve
-
-# Build all projects
-npx nx run-many -t build
-
-# Run tests
-npx nx run-many -t test
-
-# Lint all projects
-npx nx run-many -t lint
-
-# Run e2e tests
-npx nx run @org/shop-e2e:e2e
-
-# Run tasks in parallel
-
-npx nx run-many -t lint test build e2e --parallel=3
-
-# Visualize the project graph
-npx nx graph
+docker compose up -d
 ```
 
-## ⭐ Featured Nx Capabilities
+This starts:
+- Shop UI on `4200`
+- API on `3333`
 
-This repository showcases several powerful Nx features:
+Default compose env points ReviewLens to:
+- `http://host.docker.internal:8090`
 
-### 1. 🔒 Module Boundaries
+If your ReviewLens service is elsewhere, update `REVIEWLENS_API_BASE_URL` in `docker-compose.yml` (or override via environment).
 
-Enforces architectural constraints using tags. Each project has specific dependencies it can use:
-
-- `scope:shared` - Can be used by all projects
-- `scope:shop` - Shop-specific libraries
-- `scope:api` - API-specific libraries
-- `type:feature` - Feature libraries
-- `type:data` - Data access libraries
-- `type:ui` - UI component libraries
-
-**Try it out:**
-
+Logs:
 ```bash
-# See the current project graph and boundaries
-npx nx graph
-
-# View a specific project's details
-npx nx show project @org/shop --web
+docker compose logs -f orm-front
 ```
 
-[Learn more about module boundaries →](https://nx.dev/docs/features/enforce-module-boundaries)
-
-### 2. 🎭 Playwright E2E Testing
-
-End-to-end testing with Playwright is pre-configured:
-
+Stop:
 ```bash
-# Run e2e tests
-npx nx run @org/shop-e2e:e2e
-
-# Run e2e tests in CI mode
-npx nx run @org/shop-e2e:e2e-ci
+docker compose down
 ```
 
-[Learn more about E2E testing →](https://nx.dev/docs/technologies/test-tools/playwright)
+---
 
-### 3. ⚡ Vitest for Unit Testing
+## User guidelines
 
-Fast unit testing with Vitest for React libraries:
+1. **Login first** with a valid auth key.
+2. **Set context before chatting**.
+3. Use one context source at a time:
+   - raw text reviews (blank line between reviews), or
+   - CSV content, or
+   - Amazon/Google Maps review URL.
+4. Ask questions only about the ingested review context for best results.
+5. If chat declines, refine the question to stay inside review evidence.
+6. Re-run **Set context** whenever input data changes.
+7. Footer shows front/chat versions for quick environment verification.
 
-```bash
-# Test a specific library
-npx nx run @org/shop-data:test
+---
 
-# Test all projects
-npx nx run-many -t test
-```
+## Optional configuration
 
-[Learn more about Vite testing →](https://nx.dev/docs/technologies/build-tools/vite)
+- `VITE_API_BASE_URL` (shop app):
+  - Overrides API origin used by browser client.
+  - If not set, app uses:
+    - `http://localhost:3333` on localhost
+    - `http(s)://<current-host>:3333` on non-localhost
 
-### 4. 🔧 Self-Healing CI
+---
 
-The CI pipeline includes `nx fix-ci` which automatically identifies and suggests fixes for common issues:
+## Operational notes
 
-```bash
-# In CI, this command provides automated fixes
-npx nx fix-ci
-```
-
-This feature helps maintain a healthy CI pipeline by automatically detecting and suggesting solutions for:
-
-- Missing dependencies
-- Incorrect task configurations
-- Cache invalidation issues
-- Common build failures
-
-[Learn more about self-healing CI →](https://nx.dev/docs/features/ci-features/self-healing-ci)
-
-## 📁 Project Structure
-
-```
-├── apps/
-│   ├── shop/           [scope:shop]    - React e-commerce app
-│   ├── shop-e2e/                       - E2E tests for shop
-│   └── api/            [scope:api]     - Backend API
-├── packages/
-│   ├── shop/
-│   │   ├── feature-products/        [scope:shop,type:feature] - Product listing
-│   │   ├── feature-product-detail/  [scope:shop,type:feature] - Product details
-│   │   ├── data/                    [scope:shop,type:data]    - Data access
-│   │   └── shared-ui/               [scope:shop,type:ui]      - UI components
-│   ├── api/
-│   │   └── products/    [scope:api]    - Product service
-│   └── shared/
-│       ├── models/      [scope:shared,type:data] - Shared models
-│       └── test-utils/  [scope:shared]           - Testing utilities
-├── nx.json             - Nx configuration
-├── tsconfig.json       - TypeScript configuration
-└── eslint.config.mjs   - ESLint with module boundary rules
-```
-
-## 🏷️ Understanding Tags
-
-This repository uses tags to enforce module boundaries:
-
-| Project                 | Tags                         | Can Import From              |
-| ----------------------- | ---------------------------- | ---------------------------- |
-| `shop`                  | `scope:shop`                 | `scope:shop`, `scope:shared` |
-| `api`                   | `scope:api`                  | `scope:api`, `scope:shared`  |
-| `shop-feature-products` | `scope:shop`, `type:feature` | `scope:shop`, `scope:shared` |
-| `shop-data`             | `scope:shop`, `type:data`    | `scope:shared`               |
-| `models`                | `scope:shared`, `type:data`  | Nothing (base library)       |
-
-## 📚 Useful Commands
-
-```bash
-# Project exploration
-npx nx graph                                    # Interactive dependency graph
-npx nx list                                     # List installed plugins
-npx nx show project @org/shop --web                 # View project details
-
-# Development
-npx nx run @org/shop:serve                              # Serve React app
-npx nx run @org/api:serve                               # Serve backend API
-npx nx run @org/shop:build                              # Build React app
-npx nx run @org/shop-data:test                          # Test a specific library
-npx nx run @org/shop-feature-products:lint              # Lint a specific library
-
-# Running multiple tasks
-npx nx run-many -t build                       # Build all projects
-npx nx run-many -t test --parallel=3          # Test in parallel
-npx nx run-many -t lint test build            # Run multiple targets
-
-# Affected commands (great for CI)
-npx nx affected -t build                       # Build only affected projects
-npx nx affected -t test                        # Test only affected projects
-```
-
-## 🎯 Adding New Features
-
-### Generate a new React application:
-
-```bash
-npx nx g @nx/react:app my-app
-```
-
-### Generate a new React library:
-
-```bash
-npx nx g @nx/react:lib my-lib
-```
-
-### Generate a new React component:
-
-```bash
-npx nx g @nx/react:component my-component --project=my-lib
-```
-
-### Generate a new API library:
-
-```bash
-npx nx g @nx/node:lib my-api-lib
-```
-
-You can use `npx nx list` to see all available plugins and `npx nx list <plugin-name>` to see all generators for a specific plugin.
-
-## Nx Cloud
-
-Nx Cloud ensures a [fast and scalable CI](https://nx.dev/nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/docs/features/ci-features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/docs/features/ci-features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/docs/features/ci-features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/docs/features/ci-features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/docs/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## 🔗 Learn More
-
-- [Nx Documentation](https://nx.dev/docs)
-- [Crafting Your Workspace Tutorial](https://nx.dev/docs/getting-started/tutorials/crafting-your-workspace)
-- [Module Boundaries](https://nx.dev/docs/features/enforce-module-boundaries)
-- [Playwright Testing](https://nx.dev/docs/technologies/test-tools/playwright)
-- [Vite](https://nx.dev/docs/technologies/build-tools/vite)
-- [Docker Integration](https://nx.dev/docs/guides/nx-release/release-docker-images)
-- [Nx Cloud](https://nx.dev/nx-cloud)
-
-## 💬 Community
-
-Join the Nx community:
-
-- [Discord](https://go.nx.dev/community)
-- [X (Twitter)](https://twitter.com/nxdevtools)
-- [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [YouTube](https://www.youtube.com/@nxdevtools)
-- [Blog](https://nx.dev/blog)
+- API warnings/errors are written to `log/orm-front-api.log`.
+- The API also exposes product endpoints:
+  - `GET /api/products`
+  - `GET /api/products/categories`
+  - `GET /api/products/:id`
