@@ -221,14 +221,15 @@ export function App() {
       if (!response.ok || !payload.success || !payload.data) {
         throw new Error(payload.error ?? 'Failed to ingest reviews');
       }
-      setContextSummary(payload.data);
-      setDatasetId(payload.data.dataset_id);
+      const summary = payload.data;
+      setContextSummary(summary);
+      setDatasetId(summary.dataset_id);
       setMessages((prev) => [
         ...prev,
         createChatMessage(
           'assistant',
-          payload.data.source_summary ??
-            `Context set with ${payload.data.review_count} reviews for ${payload.data.entity_name}.`,
+          summary.source_summary ??
+            `Context set with ${summary.review_count} reviews for ${summary.entity_name}.`,
         ),
       ]);
     } catch (error) {
@@ -284,13 +285,14 @@ export function App() {
       if (!response.ok || !payload.success || !payload.data) {
         throw new Error(payload.error ?? 'Failed to get answer');
       }
+      const chatData = payload.data;
       const evidenceSuffix =
-        payload.data.evidence_review_ids.length > 0
-          ? `\n\nEvidence: ${payload.data.evidence_review_ids.join(', ')}`
+        chatData.evidence_review_ids.length > 0
+          ? `\n\nEvidence: ${chatData.evidence_review_ids.join(', ')}`
           : '';
       setMessages((prev) => [
         ...prev,
-        createChatMessage('assistant', `${payload.data.answer}${evidenceSuffix}`),
+        createChatMessage('assistant', `${chatData.answer}${evidenceSuffix}`),
       ]);
     } catch (error) {
       setMessages((prev) => [
