@@ -30,8 +30,7 @@ jobs:
           node-version: 24
           cache: 'yarn'
 
-      - run: corepack enable
-      - run: yarn install --immutable
+      - run: corepack enable && corepack prepare yarn@4.18.1 --activate && yarn --version && yarn install --immutable
       - run: npx playwright install --with-deps
 
       # Prepend any command with "nx record --" to record its logs to Nx Cloud
