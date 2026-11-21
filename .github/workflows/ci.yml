@@ -24,11 +24,9 @@ jobs:
       # Learn more at https://nx.dev/docs/reference/nx-cloud-cli#npx-nxcloud-startcirun
       - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e"
 
-      # Cache Yarn dependencies
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: 'yarn'
 
       - run: corepack enable && corepack prepare yarn@4.18.1 --activate && yarn --version && yarn install --immutable
       - run: npx playwright install --with-deps
