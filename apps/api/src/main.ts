@@ -7,13 +7,7 @@ import { appendFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { ProductsService } from '@org/api-products';
-import type {
-  ApiResponse,
-  Product,
-  ProductFilter,
-  PaginatedResponse,
-} from '@org/models';
+import type { ApiResponse } from '@org/models';
 
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirPath = path.dirname(currentFilePath);
@@ -27,7 +21,6 @@ const port = process.env.PORT ? Number(process.env.PORT) : 3333;
 const execFileAsync = promisify(execFile);
 
 const app = express();
-const productsService = new ProductsService();
 
 async function writeLog(level: 'WARNING' | 'ERROR', message: string): Promise<void> {
   const timestamp = new Date().toISOString();
@@ -481,97 +474,6 @@ app.post('/api/reviewlens/chat', async (req, res) => {
       data: null,
       error: message,
     } satisfies ApiResponse<null>);
-  }
-});
-
-// Products endpoints
-app.get('/api/products', (req, res) => {
-  try {
-    const filter: ProductFilter = {};
-
-    if (req.query.category) {
-      filter.category = req.query.category as string;
-    }
-    if (req.query.minPrice) {
-      filter.minPrice = Number(req.query.minPrice);
-    }
-    if (req.query.maxPrice) {
-      filter.maxPrice = Number(req.query.maxPrice);
-    }
-    if (req.query.inStock !== undefined) {
-      filter.inStock = req.query.inStock === 'true';
-    }
-    if (req.query.searchTerm) {
-      filter.searchTerm = req.query.searchTerm as string;
-    }
-
-    const pageNumber = req.query.page ? Number(req.query.page) : 1;
-    const pageSize = req.query.pageSize ? Number(req.query.pageSize) : 10;
-
-    const result = productsService.getProducts(filter, pageNumber, pageSize);
-
-    const response: ApiResponse<PaginatedResponse<Product>> = {
-      data: result,
-      success: true,
-    };
-
-    res.json(response);
-  } catch {
-    void writeLog('ERROR', 'GET /api/products failed');
-    const response: ApiResponse<null> = {
-      data: null,
-      success: false,
-      error: 'An error occurred while fetching products',
-    };
-    res.status(500).json(response);
-  }
-});
-
-app.get('/api/products/categories', (req, res) => {
-  try {
-    const categories = productsService.getCategories();
-    const response: ApiResponse<string[]> = {
-      data: categories,
-      success: true,
-    };
-    res.json(response);
-  } catch {
-    void writeLog('ERROR', 'GET /api/products/categories failed');
-    const response: ApiResponse<null> = {
-      data: null,
-      success: false,
-      error: 'An error occurred while fetching categories',
-    };
-    res.status(500).json(response);
-  }
-});
-
-app.get('/api/products/:id', (req, res) => {
-  try {
-    const product = productsService.getProductById(req.params.id);
-
-    if (!product) {
-      const response: ApiResponse<null> = {
-        data: null,
-        success: false,
-        error: 'Product not found',
-      };
-      return res.status(404).json(response);
-    }
-
-    const response: ApiResponse<Product> = {
-      data: product,
-      success: true,
-    };
-    return res.json(response);
-  } catch {
-    void writeLog('ERROR', `GET /api/products/${req.params.id} failed`);
-    const response: ApiResponse<null> = {
-      data: null,
-      success: false,
-      error: 'An error occurred while fetching the product',
-    };
-    return res.status(500).json(response);
   }
 });
 

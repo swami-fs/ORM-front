@@ -2607,20 +2607,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@org/api-products@workspace:*, @org/api-products@workspace:packages/api/products":
-  version: 0.0.0-use.local
-  resolution: "@org/api-products@workspace:packages/api/products"
-  dependencies:
-    "@org/models": "workspace:*"
-    tslib: "npm:^2.3.0"
-  languageName: unknown
-  linkType: soft
-
 "@org/api@workspace:apps/api":
   version: 0.0.0-use.local
   resolution: "@org/api@workspace:apps/api"
   dependencies:
-    "@org/api-products": "workspace:*"
     "@org/models": "workspace:*"
     dotenv: "npm:^16.6.1"
     express: "npm:^4.21.2"
@@ -2641,36 +2631,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@org/shop-data@workspace:*, @org/shop-data@workspace:packages/shop/data":
-  version: 0.0.0-use.local
-  resolution: "@org/shop-data@workspace:packages/shop/data"
-  dependencies:
-    "@org/models": "workspace:*"
-  languageName: unknown
-  linkType: soft
-
 "@org/shop-e2e@workspace:apps/shop-e2e":
   version: 0.0.0-use.local
   resolution: "@org/shop-e2e@workspace:apps/shop-e2e"
-  languageName: unknown
-  linkType: soft
-
-"@org/shop-feature-product-detail@workspace:*, @org/shop-feature-product-detail@workspace:packages/shop/feature-product-detail":
-  version: 0.0.0-use.local
-  resolution: "@org/shop-feature-product-detail@workspace:packages/shop/feature-product-detail"
-  dependencies:
-    "@org/shop-data": "workspace:*"
-    "@org/shop-shared-ui": "workspace:*"
-  languageName: unknown
-  linkType: soft
-
-"@org/shop-feature-products@workspace:*, @org/shop-feature-products@workspace:packages/shop/feature-products":
-  version: 0.0.0-use.local
-  resolution: "@org/shop-feature-products@workspace:packages/shop/feature-products"
-  dependencies:
-    "@org/models": "workspace:*"
-    "@org/shop-data": "workspace:*"
-    "@org/shop-shared-ui": "workspace:*"
   languageName: unknown
   linkType: soft
 
@@ -2688,9 +2651,6 @@ __metadata:
   resolution: "@org/shop@workspace:apps/shop"
   dependencies:
     "@org/models": "workspace:*"
-    "@org/shop-data": "workspace:*"
-    "@org/shop-feature-product-detail": "workspace:*"
-    "@org/shop-feature-products": "workspace:*"
     "@org/shop-shared-ui": "workspace:*"
   languageName: unknown
   linkType: soft

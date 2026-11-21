@@ -33,9 +33,6 @@
   "references": [
     {
       "path": "../../packages/shared/models/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/api/products/tsconfig.lib.json"
     }
   ]
 }

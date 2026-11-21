@@ -219,7 +219,3 @@ docker compose down
 ## Operational notes
 
 - API warnings/errors are written to `log/orm-front-api.log`.
-- The API also exposes product endpoints:
-  - `GET /api/products`
-  - `GET /api/products/categories`
-  - `GET /api/products/:id`

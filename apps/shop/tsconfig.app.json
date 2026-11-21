@@ -38,15 +38,6 @@
       "path": "../../packages/shop/shared-ui/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/shop/feature-products/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/shop/feature-product-detail/tsconfig.lib.json"
-    },
-    {
-      "path": "../../packages/shop/data/tsconfig.lib.json"
-    },
-    {
       "path": "../../packages/shared/models/tsconfig.lib.json"
     }
   ]
