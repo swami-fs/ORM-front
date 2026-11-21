@@ -7,7 +7,8 @@ test.describe('Login interactions', () => {
   });
 
   test('should require auth key on login', async ({ page }) => {
-    await page.getByRole('button', { name: 'Login' }).click();
+    const loginPage = page.getByLabel('Login page');
+    await loginPage.getByRole('button', { name: 'Login' }).click();
     await expect(page.getByText('Please enter auth key.')).toBeVisible();
   });
 
