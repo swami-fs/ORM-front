@@ -1,11 +1,15 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import './app.css';
 
-const MENU_ITEMS = ['About', 'Settings', 'Help'];
+const MENU_ITEMS = [
+  { label: 'Settings', icon: '⚙️' },
+  { label: 'About', icon: 'ℹ️' },
+  { label: 'Help', icon: '❓' },
+];
 const localhostHostnames = new Set(['localhost', '127.0.0.1']);
 const inferredApiOrigin = localhostHostnames.has(window.location.hostname)
   ? 'http://localhost:3333'
-  : `${window.location.protocol}//${window.location.hostname}:3333`;
+  : window.location.origin;
 const apiOrigin = (import.meta.env.VITE_API_BASE_URL?.trim() || inferredApiOrigin).replace(
   /\/$/,
   '',
@@ -19,6 +23,7 @@ function apiUrl(path: string): string {
 type ChatMessage = {
   role: 'user' | 'assistant';
   text: string;
+  timestamp: string;
 };
 
 type IngestSummary = {
@@ -27,7 +32,10 @@ type IngestSummary = {
   entity_name: string;
   source_summary?: string | null;
   review_count: number;
+  rating_count?: number;
   average_rating: number | null;
+  first_review_date?: string | null;
+  last_review_date?: string | null;
 };
 
 type IngestContextApiResponse = {
@@ -63,6 +71,18 @@ type VersionsApiResponse = {
   error?: string;
 };
 
+function createChatMessage(role: ChatMessage['role'], text: string): ChatMessage {
+  return {
+    role,
+    text,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+function formatLocalTimestamp(timestamp: string): string {
+  return new Date(timestamp).toLocaleString();
+}
+
 export function App() {
   const [showLoginPage, setShowLoginPage] = useState(true);
   const [authKey, setAuthKey] = useState('');
@@ -80,11 +100,23 @@ export function App() {
   const [chatVersion, setChatVersion] = useState('unknown');
   const chatHistoryRef = useRef<HTMLDivElement | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: 'assistant',
-      text: 'Paste reviews (or an Amazon/Google URL) on the left, click "Set context", then ask questions here.',
-    },
+    createChatMessage(
+      'assistant',
+      'Paste reviews (or an Amazon/Google URL) on the left, click "Set context", then ask questions here.',
+    ),
   ]);
+  const normalizedAverageRating =
+    typeof contextSummary?.average_rating === 'number' && Number.isFinite(contextSummary.average_rating)
+      ? Math.max(0, Math.min(5, contextSummary.average_rating))
+      : null;
+  const averageRatingPercent = normalizedAverageRating ? (normalizedAverageRating / 5) * 100 : 0;
+  const ratingCount =
+    typeof contextSummary?.rating_count === 'number' ? contextSummary.rating_count : null;
+  const ratingCoveragePercent =
+    contextSummary && contextSummary.review_count > 0 && ratingCount !== null
+      ? Math.round((ratingCount / contextSummary.review_count) * 100)
+      : null;
+  const contextSourceType = reviewsInput.trim().startsWith('http') ? 'URL' : 'Text / CSV';
 
   useEffect(() => {
     if (showLoginPage) {
@@ -95,7 +127,7 @@ export function App() {
       return;
     }
     chatHistoryElement.scrollTop = chatHistoryElement.scrollHeight;
-  }, [messages, showLoginPage]);
+  }, [messages, showLoginPage, chatBusy]);
 
   useEffect(() => {
     const loadVersions = async () => {
@@ -137,10 +169,7 @@ export function App() {
       setShowLoginPage(false);
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          text: 'Authenticated successfully. You can now set context and chat.',
-        },
+        createChatMessage('assistant', 'Authenticated successfully. You can now set context and chat.'),
       ]);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Authentication failed.');
@@ -189,12 +218,11 @@ export function App() {
       setDatasetId(payload.data.dataset_id);
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          text:
-            payload.data.source_summary ??
+        createChatMessage(
+          'assistant',
+          payload.data.source_summary ??
             `Context set with ${payload.data.review_count} reviews for ${payload.data.entity_name}.`,
-        },
+        ),
       ]);
     } catch (error) {
       setContextError(
@@ -214,25 +242,22 @@ export function App() {
       return;
     }
 
-    setMessages((prev) => [...prev, { role: 'user', text: trimmed }]);
+    setMessages((prev) => [...prev, createChatMessage('user', trimmed)]);
     setChatInput('');
     if (!bearerToken) {
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          text: 'Please login first.',
-        },
+        createChatMessage('assistant', 'Please login first.'),
       ]);
       return;
     }
     if (!datasetId) {
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          text: 'Please set context first by providing reviews text/CSV or a review URL, then click "Set context".',
-        },
+        createChatMessage(
+          'assistant',
+          'Please set context first by providing reviews text/CSV or a review URL, then click "Set context".',
+        ),
       ]);
       return;
     }
@@ -258,21 +283,17 @@ export function App() {
           : '';
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          text: `${payload.data.answer}${evidenceSuffix}`,
-        },
+        createChatMessage('assistant', `${payload.data.answer}${evidenceSuffix}`),
       ]);
     } catch (error) {
       setMessages((prev) => [
         ...prev,
-        {
-          role: 'assistant',
-          text:
-            error instanceof Error
-              ? `Chat failed: ${error.message}`
-              : 'Chat failed due to an unexpected error.',
-        },
+        createChatMessage(
+          'assistant',
+          error instanceof Error
+            ? `Chat failed: ${error.message}`
+            : 'Chat failed due to an unexpected error.',
+        ),
       ]);
     } finally {
       setChatBusy(false);
@@ -281,121 +302,237 @@ export function App() {
 
   return (
     <div className="layout">
-      <header className="topbar">
-        <div className="brand-wrap">
-          <div className="brand-logo" aria-hidden="true">
-            ORM
+      <div className="shell">
+        <aside className="sidebar">
+          <div className="brand-wrap">
+            <div className="brand-logo" aria-hidden="true">
+              ORM
+            </div>
+            <h1 className="brand">Online Reputation Management</h1>
           </div>
-          <h1 className="brand">Online Reputation Management</h1>
-        </div>
-        <nav className="topbar-menu" aria-label="Top menu">
-          <button
-            className="menu-pill"
-            type="button"
-            onClick={() => {
-              if (bearerToken) {
-                handleLogout();
-                return;
-              }
-              setShowLoginPage(true);
-            }}
-          >
-            {bearerToken ? 'Logout' : 'Login'}
-          </button>
-          {MENU_ITEMS.map((item) => (
-            <button key={item} className="menu-pill" type="button">
-              {item}
+          <nav className="side-menu" aria-label="Left menu">
+            {MENU_ITEMS.map((item) => (
+              <button key={item.label} className="menu-item" type="button" aria-label={item.label}>
+                <span className="menu-icon" aria-hidden="true">
+                  {item.icon}
+                </span>
+              </button>
+            ))}
+            <button
+              className="menu-item"
+              type="button"
+              aria-label={bearerToken ? 'Logout' : 'Login'}
+              onClick={() => {
+                if (bearerToken) {
+                  handleLogout();
+                  return;
+                }
+                setShowLoginPage(true);
+              }}
+            >
+              <span className="menu-icon" aria-hidden="true">
+                {bearerToken ? '🚪' : '🔐'}
+              </span>
             </button>
-          ))}
-        </nav>
-      </header>
+          </nav>
+        </aside>
 
-      <div className="workspace">
-        {showLoginPage ? (
-          <main className="login-page">
-            <section className="login-card" aria-label="Login page">
-              <h2>Login</h2>
-              <p>Enter auth key to get a bearer token.</p>
-              <form onSubmit={(event) => void handleAuthenticate(event)} className="login-form">
-                <label className="context-label" htmlFor="authKeyInput">
-                  Auth Key
-                </label>
-                <input
-                  id="authKeyInput"
-                  className="context-input"
-                  value={authKey}
-                  onChange={(event) => setAuthKey(event.target.value)}
-                  placeholder="Enter auth key"
-                />
-                <button className="load-btn login-btn" type="submit" disabled={authenticating}>
-                  {authenticating ? 'Authenticating...' : 'Login'}
-                </button>
-              </form>
-              {authError && <p className="error-note">{authError}</p>}
-            </section>
-          </main>
-        ) : (
-          <main className="main-pane">
-            <section className="context-pane" aria-label="Review context">
-              <div className="context-form context-form-row">
-                <textarea
-                  id="reviewsInput"
-                  className="reviews-textbox"
-                  value={reviewsInput}
-                  onChange={(event) => setReviewsInput(event.target.value)}
-                  placeholder={
-                    'Enter Amazon or Google URL (e.g., https://www.amazon.com/dp/B0EXAMPLE12 or https://maps.app.goo.gl/exampleBusinessLink), or paste reviews in raw text / CSV format'
-                  }
-                />
-                <button
-                  className="load-btn"
-                  type="button"
-                  onClick={() => void handleSetContext()}
-                  disabled={ingesting}
-                >
-                  {ingesting ? 'Setting context...' : 'Set context'}
-                </button>
-              </div>
-              {contextError && <p className="error-note">{contextError}</p>}
-              {contextSummary && (
-                <p className="status-note">
-                  Context active: {contextSummary.review_count} reviews, dataset id{' '}
-                  <code>{contextSummary.dataset_id}</code>
-                </p>
-              )}
-            </section>
-
-            <section className="chat-pane" aria-label="Chat window">
-              <div className="chat-title">ReviewLens AI</div>
-              <div className="chat-history" ref={chatHistoryRef}>
-                {messages.map((message, index) => (
-                  <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
-                    {message.text}
+        <div className="workspace">
+          {showLoginPage ? (
+            <main className="login-page">
+              <section className="login-card" aria-label="Login page">
+                <h2>Welcome back</h2>
+                <p>Enter your auth key to continue to ReviewLens AI.</p>
+                <form onSubmit={(event) => void handleAuthenticate(event)} className="login-form">
+                  <label className="context-label" htmlFor="authKeyInput">
+                    Auth Key
+                  </label>
+                  <input
+                    id="authKeyInput"
+                    className="context-input"
+                    value={authKey}
+                    onChange={(event) => setAuthKey(event.target.value)}
+                    placeholder="Enter auth key"
+                  />
+                  <button className="load-btn login-btn" type="submit" disabled={authenticating}>
+                    {authenticating ? 'Authenticating...' : 'Login'}
+                  </button>
+                </form>
+                {authError && <p className="error-note">{authError}</p>}
+              </section>
+            </main>
+          ) : (
+            <main className="main-pane">
+              <div className="main-content">
+                <div className="left-column">
+                  <div className="app-header">
+                    <div className="brand-wrap-main">
+                      <div className="brand-logo-main" aria-hidden="true">
+                        ORM
+                      </div>
+                      <h1 className="brand-main">Online Reputation Management</h1>
+                    </div>
                   </div>
-                ))}
+
+                  <section className="context-pane" aria-label="Review context">
+                    <div className="section-header">
+                      <h2>Context</h2>
+                      <p>Paste reviews text/CSV or a supported review URL to set active context.</p>
+                    </div>
+                    <div className="context-form context-form-row">
+                      <textarea
+                        id="reviewsInput"
+                        className="reviews-textbox"
+                        value={reviewsInput}
+                        onChange={(event) => setReviewsInput(event.target.value)}
+                        placeholder={
+                          'Enter Amazon or Google URL (e.g., https://www.amazon.com/dp/B0EXAMPLE12 or https://maps.app.goo.gl/exampleBusinessLink), or paste reviews in raw text / CSV format'
+                        }
+                      />
+                      <button
+                        className="load-btn"
+                        type="button"
+                        onClick={() => void handleSetContext()}
+                        disabled={ingesting}
+                      >
+                        {ingesting ? 'Setting context...' : 'Set context'}
+                      </button>
+                    </div>
+                    {contextError && <p className="error-note">{contextError}</p>}
+                    {contextSummary && (
+                      <p className="status-note">
+                        Context active: {contextSummary.review_count} reviews, dataset id{' '}
+                        <code>{contextSummary.dataset_id}</code>
+                      </p>
+                    )}
+                  </section>
+
+                <section className="chat-pane" aria-label="Chat window">
+                  <div className="chat-title">
+                    <h2>ReviewLens AI</h2>
+                    <p>Ask focused questions about the active context.</p>
+                  </div>
+                  <div className="chat-history" ref={chatHistoryRef}>
+                    {messages.map((message, index) => (
+                      <div key={`${message.role}-${index}`} className={`chat-bubble ${message.role}`}>
+                        <span className="bubble-role">
+                          {message.role === 'user' ? 'You' : 'Assistant'}
+                          <span className="bubble-meta"> · {formatLocalTimestamp(message.timestamp)}</span>
+                        </span>
+                        <span className="bubble-text">{message.text}</span>
+                      </div>
+                    ))}
+                    {chatBusy && (
+                      <div className="chat-bubble assistant thinking-bubble" aria-live="polite">
+                        <span className="bubble-role">
+                          Assistant
+                          <span className="bubble-meta"> · {formatLocalTimestamp(new Date().toISOString())}</span>
+                        </span>
+                        <span className="thinking-row">
+                          Thinking
+                          <span className="thinking-dots" aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <form className="chat-input-row" onSubmit={(event) => void handleSendMessage(event)}>
+                    <label className="sr-only" htmlFor="chatInput">
+                      Chat message
+                    </label>
+                    <input
+                      id="chatInput"
+                      className="chat-input"
+                      value={chatInput}
+                      onChange={(event) => setChatInput(event.target.value)}
+                      placeholder="Ask about the context reviews..."
+                      disabled={chatBusy}
+                    />
+                    <button className="send-btn" type="submit" disabled={chatBusy}>
+                      Send
+                    </button>
+                  </form>
+                </section>
               </div>
-              <form className="chat-input-row" onSubmit={(event) => void handleSendMessage(event)}>
-                <label className="sr-only" htmlFor="chatInput">
-                  Chat message
-                </label>
-                <input
-                  id="chatInput"
-                  className="chat-input"
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  placeholder="Ask about the context reviews..."
-                  disabled={chatBusy}
-                />
-                <button className="send-btn" type="submit" disabled={chatBusy}>
-                  {chatBusy ? 'Asking...' : 'Send'}
-                </button>
-              </form>
-            </section>
-          </main>
-        )}
+
+              <aside className="analytics-pane" aria-label="Context analytics">
+                <div className="analytics-header">
+                  <h2>Analytics</h2>
+                  <p>Snapshot from the currently active context.</p>
+                </div>
+
+                {contextSummary ? (
+                  <div className="analytics-content">
+                    <div className="analytics-card">
+                      <h3>Overview</h3>
+                      <dl className="analytics-list">
+                        <div>
+                          <dt>Entity</dt>
+                          <dd>{contextSummary.entity_name || 'Unknown'}</dd>
+                        </div>
+                        <div>
+                          <dt>Platform</dt>
+                          <dd>{contextSummary.platform || 'Not specified'}</dd>
+                        </div>
+                        <div>
+                          <dt>Source type</dt>
+                          <dd>{contextSourceType}</dd>
+                        </div>
+                        <div>
+                          <dt>Total reviews</dt>
+                          <dd>{contextSummary.review_count}</dd>
+                        </div>
+                        {contextSummary.first_review_date && contextSummary.last_review_date && (
+                          <div>
+                            <dt>Date range</dt>
+                            <dd>
+                              {contextSummary.first_review_date} - {contextSummary.last_review_date}
+                            </dd>
+                          </div>
+                        )}
+                      </dl>
+                    </div>
+
+                    <div className="analytics-card">
+                      <h3>Ratings</h3>
+                      <div className="rating-value">
+                        {normalizedAverageRating !== null
+                          ? `${normalizedAverageRating.toFixed(1)} / 5`
+                          : 'No rating data'}
+                      </div>
+                      <div className="rating-track" aria-hidden="true">
+                        <div className="rating-fill" style={{ width: `${averageRatingPercent}%` }} />
+                      </div>
+                      <div className="rating-meta">
+                        {ratingCount !== null
+                          ? `${ratingCount} rated reviews${ratingCoveragePercent !== null ? ` (${ratingCoveragePercent}% coverage)` : ''}`
+                          : 'Rating count unavailable'}
+                      </div>
+                    </div>
+
+                    <div className="analytics-card">
+                      <h3>Demographics</h3>
+                      <p className="analytics-muted">
+                        Gender/age split is not available in current ingest response.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="analytics-empty">
+                    Set context first to see platform, review volume, rating trend, and demographic placeholders.
+                  </div>
+                )}
+              </aside>
+            </div>
+            </main>
+          )}
+        </div>
       </div>
       <footer className="version-footer">
-        Front v{frontVersion} | Chat-AI v{chatVersion}
+        Swami Krishnamoorthy's Demo Project |Front v{frontVersion} | Chat-AI v{chatVersion}
       </footer>
     </div>
   );

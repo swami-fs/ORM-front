@@ -24,13 +24,14 @@ jobs:
       # Learn more at https://nx.dev/docs/reference/nx-cloud-cli#npx-nxcloud-startcirun
       - run: npx nx start-ci-run --distribute-on="3 linux-medium-js" --stop-agents-after="e2e"
 
-      # Cache node_modules
+      # Cache Yarn dependencies
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: 'npm'
+          cache: 'yarn'
 
-      - run: npm ci
+      - run: corepack enable
+      - run: yarn install --immutable
       - run: npx playwright install --with-deps
 
       # Prepend any command with "nx record --" to record its logs to Nx Cloud

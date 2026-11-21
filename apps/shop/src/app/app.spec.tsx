@@ -13,12 +13,14 @@ describe('App', () => {
     expect(baseElement).toBeTruthy();
   });
 
-  it('should show the app brand title', () => {
-    const { getByText } = render(
+  it('should render the left menu with icons', () => {
+    const { getByLabelText, getByText, queryByLabelText } = render(
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <App />
       </BrowserRouter>
     );
-    expect(getByText('ORM Front')).toBeInTheDocument();
+    expect(getByLabelText('Left menu')).toBeInTheDocument();
+    expect(queryByLabelText('Top menu')).not.toBeInTheDocument();
+    expect(getByText('🔐')).toBeInTheDocument();
   });
 });

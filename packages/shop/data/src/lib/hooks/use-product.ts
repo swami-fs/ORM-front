@@ -4,7 +4,7 @@ import { Product, ApiResponse } from '@org/models';
 const localhostHostnames = new Set(['localhost', '127.0.0.1']);
 const inferredApiOrigin = localhostHostnames.has(window.location.hostname)
   ? 'http://localhost:3333'
-  : `${window.location.protocol}//${window.location.hostname}:3333`;
+  : window.location.origin;
 const apiOrigin = (import.meta.env.VITE_API_BASE_URL?.trim() || inferredApiOrigin).replace(
   /\/$/,
   '',
