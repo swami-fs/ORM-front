@@ -411,6 +411,15 @@ app.post('/api/reviewlens/authenticate', async (req, res) => {
 
 app.get('/api/reviewlens/versions', async (req, res) => {
   try {
+    if (!process.env.REVIEWLENS_API_BASE_URL?.trim()) {
+      return res.json({
+        success: true,
+        data: {
+          frontVersion: getFrontVersion(),
+          chatVersion: 'unconfigured',
+        },
+      } satisfies ApiResponse<{ frontVersion: string; chatVersion: string }>);
+    }
     const chatHealth = await callReviewLensHealth();
     return res.json({
       success: true,

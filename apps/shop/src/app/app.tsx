@@ -20,6 +20,13 @@ function apiUrl(path: string): string {
   return `${apiOrigin}${normalizedPath}`;
 }
 
+function normalizeMessageText(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n');
+}
+
 type ChatMessage = {
   role: 'user' | 'assistant';
   text: string;
@@ -74,7 +81,7 @@ type VersionsApiResponse = {
 function createChatMessage(role: ChatMessage['role'], text: string): ChatMessage {
   return {
     role,
-    text,
+    text: normalizeMessageText(text),
     timestamp: new Date().toISOString(),
   };
 }
