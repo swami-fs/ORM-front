@@ -359,6 +359,7 @@ export function App() {
                   <input
                     id="authKeyInput"
                     className="context-input"
+                    type="password"
                     value={authKey}
                     onChange={(event) => setAuthKey(event.target.value)}
                     placeholder="Enter auth key"
